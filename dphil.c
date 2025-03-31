@@ -1,54 +1,65 @@
+/*Henok Woldemichael 001198444*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
 #include <semaphore.h>
+#include <unistd.h>
 
-#define NUM_THREADS 2
+sem_t leftChopstick;
+sem_t rightChopstick;
 
-// Global semaphore
-sem_t semaphore;
+int main(int argc, char *argv[]) {
+    if (argc < 3) {
+        printf("Usage: %s <num_threads> <num_meals>\n", argv[0]);
+        return 1;
+    }
 
-// Function that each thread will execute
-void* thread_function(void* arg) {
-    int thread_id = *((int*)arg);
+    int numThreads = atoi(argv[1]);
+    int numMeals = atoi(argv[2]);
+    pthread_t threads[numThreads];
 
-    // Wait (decrement semaphore)
-    sem_wait(&semaphore);
-    printf("Thread %d is in the critical section\n", thread_id);
-    
-    // Simulate some work
-    sleep(1);
+    sem_init(&leftChopstick, 0, 1);
+    sem_init(&rightChopstick, 0, 1);
 
-    // Signal (increment semaphore)
-    sem_post(&semaphore);
-    printf("Thread %d has left the critical section\n", thread_id);
+    for (int i = 0; i < numMeals; i++) {
+        for (int j = 1; j <= numThreads; j++) {
+            if (j % 2 == 1) {
+                printf("Odd philosopher %d picking up left chopstick\n", j);
+                sem_wait(&leftChopstick);
 
-    return NULL;
-}
+                printf("Odd philosopher %d picking up right chopstick\n", j);
+                sem_wait(&rightChopstick);
+                printf("Odd philosopher %d Eating\n", j);
+                printf("All other philosophers Thinking\n");
 
-int main() {
-    pthread_t threads[NUM_THREADS];
-    int thread_ids[NUM_THREADS];
+                sleep(1);
 
-    // Initialize semaphore (value of 1 allows one thread at a time)
-    sem_init(&semaphore, 0, 1);
+                sem_post(&leftChopstick);
+                sem_post(&rightChopstick);
+                printf("Odd philosopher %d Done Eating, resources freed up.\n", j);
+            } else {
+                printf("Even philosopher %d picking up right chopstick\n", j);
+                sem_wait(&rightChopstick);
 
-    // Create threads
-    for (int i = 0; i < NUM_THREADS; i++) {
-        thread_ids[i] = i + 1;
-        if (pthread_create(&threads[i], NULL, thread_function, &thread_ids[i]) != 0) {
-            perror("Failed to create thread");
-            exit(EXIT_FAILURE);
+                printf("Even philosopher %d picking up left chopstick\n", j);
+                sem_wait(&leftChopstick);
+
+                printf("Even philosopher %d Eating\n", j);
+                printf("All other philosophers Thinking\n");
+
+                sleep(1);
+
+                sem_post(&rightChopstick);
+                sem_post(&leftChopstick);
+
+                printf("Even philosopher %d Done Eating, resources freed up.\n", j);
+            }
         }
     }
 
-    // Wait for all threads to complete
-    for (int i = 0; i < NUM_THREADS; i++) {
-        pthread_join(threads[i], NULL);
-    }
-
-    // Destroy the semaphore
-    sem_destroy(&semaphore);
+    sem_destroy(&leftChopstick);
+    sem_destroy(&rightChopstick);
 
     return 0;
 }
